@@ -14,7 +14,11 @@ type TokenGeneratorData = {
   token: string;
   mode: ConnectionMode;
   disconnect: () => Promise<void>;
-  connect: (mode: ConnectionMode) => Promise<void>;
+  connect: (mode: ConnectionMode, username?: string) => Promise<void>;
+  // v18: optional username — passed to /api/token as ?name= so it becomes the LiveKit identity.
+  // Stored in localStorage so it persists across refreshes; empty string = anonymous.
+  username: string;
+  setUsername: (u: string) => void;
 };
 
 const ConnectionContext = createContext<TokenGeneratorData | undefined>(undefined);
@@ -34,8 +38,14 @@ export const ConnectionProvider = ({
     shouldConnect: boolean;
   }>({ wsUrl: "", token: "", shouldConnect: false, mode: "manual" });
 
+  // v18: persist last-used username; empty string = anonymous (backward-compatible).
+  const [username, setUsername] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("jeeves_last_username") || "";
+  });
+
   const connect = useCallback(
-    async (mode: ConnectionMode) => {
+    async (mode: ConnectionMode, usernameArg?: string) => {
       let token = "";
       let url = "";
       if (mode === "cloud") {
@@ -54,9 +64,16 @@ export const ConnectionProvider = ({
           throw new Error("NEXT_PUBLIC_LIVEKIT_URL is not set");
         }
         url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-        const { accessToken } = await fetch("/api/token").then((res) =>
-          res.json()
-        );
+        // v18: pass ?name= so the API can use it as the LiveKit identity.
+        // Falls back gracefully — old API ignores the param, new API treats empty/missing as random identity.
+        const name = (usernameArg ?? username ?? "").trim();
+        if (name && typeof window !== "undefined") {
+          localStorage.setItem("jeeves_last_username", name);
+        }
+        const url_ = name
+          ? `/api/token?name=${encodeURIComponent(name)}`
+          : "/api/token";
+        const { accessToken } = await fetch(url_).then((res) => res.json());
         token = accessToken;
       } else {
         token = config.settings.token;
@@ -70,6 +87,7 @@ export const ConnectionProvider = ({
       config.settings.ws_url,
       generateToken,
       setToastMessage,
+      username,
     ]
   );
 
@@ -86,6 +104,8 @@ export const ConnectionProvider = ({
         mode: connectionDetails.mode,
         connect,
         disconnect,
+        username,
+        setUsername,
       }}
     >
       {children}
