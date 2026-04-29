@@ -50,7 +50,7 @@ export default function Home() {
 }
 
 export function HomeInner() {
-  const { shouldConnect, wsUrl, token, mode, connect, disconnect } =
+  const { shouldConnect, wsUrl, token, mode, connect, disconnect, username, setUsername } =
     useConnection();
 
   const { config } = useConfig();
@@ -58,9 +58,9 @@ export function HomeInner() {
 
   const handleConnect = useCallback(
     async (c: boolean, mode: ConnectionMode) => {
-      c ? connect(mode) : disconnect();
+      c ? connect(mode, username) : disconnect();
     },
-    [connect, disconnect]
+    [connect, disconnect, username]
   );
 
   const showPG = useMemo(() => {
@@ -122,6 +122,8 @@ export function HomeInner() {
                 const m = process.env.NEXT_PUBLIC_LIVEKIT_URL ? "env" : mode;
                 handleConnect(c, m);
               }}
+              username={username}
+              onUsernameChange={setUsername}
             />
             <RoomAudioRenderer />
             <StartAudio label="Click to enable audio playback" />
