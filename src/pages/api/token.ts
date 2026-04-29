@@ -8,7 +8,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const apiKey    = process.env.LIVEKIT_API_KEY!;
   const apiSecret = process.env.LIVEKIT_API_SECRET!;
-  const roomName  = (req.query.room as string) || "sujit-room";
+  const roomName = (req.query.room as string)
+    || `room-${Math.random().toString(36).slice(2,6)}-${Math.random().toString(36).slice(2,6)}`;
+
   const identity  = ((req.query.name as string) || "").trim() || "user";
 
   if (!apiKey || !apiSecret) {
