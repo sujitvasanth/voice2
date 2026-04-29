@@ -1,4 +1,3 @@
-
 "use client";
 
 import { LoadingSVG } from "@/components/button/LoadingSVG";
@@ -15,6 +14,9 @@ import {
 } from "@/components/playground/PlaygroundTile";
 import { useConfig } from "@/hooks/useConfig";
 import { TranscriptionTile } from "@/transcriptions/TranscriptionTile";
+// v18: optional username + chat-history features
+import { UsernameBar } from "@/components/UsernameBar";
+import { HistoryPanel } from "@/components/HistoryPanel";
 import {
   BarVisualizer,
   VideoTrack,
@@ -39,6 +41,9 @@ export interface PlaygroundProps {
   logo?: ReactNode;
   themeColors: string[];
   onConnect: (connect: boolean, opts?: { token: string; url: string }) => void;
+  // v18: optional username binding (passed to LiveKit identity at connect-time).
+  username?: string;
+  onUsernameChange?: (u: string) => void;
 }
 
 const headerHeight = 56;
@@ -47,6 +52,8 @@ export default function Playground({
   logo,
   themeColors,
   onConnect,
+  username = "",
+  onUsernameChange,
 }: PlaygroundProps) {
   const { config, setUserSettings } = useConfig();
   const { name } = useRoomInfo();
@@ -218,9 +225,32 @@ export default function Playground({
     return <></>;
   }, [config.settings.theme_color, voiceAssistant.audioTrack]);
 
+  // v18: History tab content — only meaningful once connected (uses LiveKit chat/data channel).
+  const historyTileContent = useMemo(() => {
+    return (
+      <HistoryPanel
+        username={username}
+        accentColor={config.settings.theme_color}
+      />
+    );
+  }, [username, config.settings.theme_color]);
+
   const settingsTileContent = useMemo(() => {
+    const isConnected = roomState === ConnectionState.Connected;
     return (
       <div className="flex flex-col gap-4 h-full w-full items-start overflow-y-auto">
+        {/* v18: Username — shown at top of Settings so it's set before clicking Connect.
+            Locked once connected so identity stays stable mid-session. */}
+        {onUsernameChange && (
+          <ConfigurationPanelItem title="Identity">
+            <UsernameBar
+              value={username}
+              onChange={onUsernameChange}
+              disabled={isConnected}
+              accentColor={config.settings.theme_color}
+            />
+          </ConfigurationPanelItem>
+        )}
         {config.description && (
           <ConfigurationPanelItem title="Description">
             {config.description}
@@ -333,6 +363,8 @@ export default function Playground({
     themeColors,
     setUserSettings,
     voiceAssistant.agent,
+    username,
+    onUsernameChange,
   ]);
 
   let mobileTabs: PlaygroundTab[] = [];
@@ -370,6 +402,12 @@ export default function Playground({
       content: chatTileContent,
     });
   }
+
+  // v18: History tab — visible on mobile alongside Chat, gracefully degrades if agent is old.
+  mobileTabs.push({
+    title: "History",
+    content: historyTileContent,
+  });
 
   mobileTabs.push({
     title: "Settings",
@@ -437,11 +475,25 @@ export default function Playground({
         </div>
 
         {config.settings.chat && (
-          <PlaygroundTile
-            title="Chat"
+          // v18: Chat + History as a tabbed tile on desktop. Same column position,
+          // user picks which view they want. History is also a top-level mobile tab.
+          <PlaygroundTabbedTile
             className="h-full grow basis-1/4 hidden lg:flex"
+            tabs={[
+              { title: "Chat", content: chatTileContent },
+              { title: "History", content: historyTileContent },
+            ]}
+            initialTab={0}
+          />
+        )}
+        {!config.settings.chat && (
+          // History still reachable on desktop even if chat panel is disabled.
+          <PlaygroundTile
+            title="History"
+            className="h-full grow basis-1/4 hidden lg:flex"
+            padding={false}
           >
-            {chatTileContent}
+            {historyTileContent}
           </PlaygroundTile>
         )}
         <PlaygroundTile
