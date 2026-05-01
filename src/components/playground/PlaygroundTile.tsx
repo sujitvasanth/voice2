@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
-
+ 
 const titleHeight = 32;
-
+ 
 type PlaygroundTileProps = {
   title?: string;
   children?: ReactNode;
@@ -10,17 +10,17 @@ type PlaygroundTileProps = {
   padding?: boolean;
   backgroundColor?: string;
 };
-
+ 
 export type PlaygroundTab = {
   title: string;
   content: ReactNode;
 };
-
+ 
 export type PlaygroundTabbedTileProps = {
   tabs: PlaygroundTab[];
   initialTab?: number;
 } & PlaygroundTileProps;
-
+ 
 export const PlaygroundTile: React.FC<PlaygroundTileProps> = ({
   children,
   title,
@@ -56,7 +56,7 @@ export const PlaygroundTile: React.FC<PlaygroundTileProps> = ({
     </div>
   );
 };
-
+ 
 export const PlaygroundTabbedTile: React.FC<PlaygroundTabbedTileProps> = ({
   tabs,
   initialTab = 0,
@@ -100,7 +100,22 @@ export const PlaygroundTabbedTile: React.FC<PlaygroundTabbedTileProps> = ({
           padding: `${contentPadding * 4}px`,
         }}
       >
-        {tabs[activeTab].content}
+        {/* v18: render ALL tabs, hide inactive ones via CSS so React state
+            (chat history, transcripts, history list) survives tab switches.
+            Previously {tabs[activeTab].content} unmounted inactive tabs. */}
+        {tabs.map((tab, index) => (
+          <div
+            key={index}
+            style={{
+              display: index === activeTab ? "flex" : "none",
+              flexDirection: "column",
+              width: "100%",
+              height: "100%",
+            }}
+          >
+            {tab.content}
+          </div>
+        ))}
       </div>
     </div>
   );
