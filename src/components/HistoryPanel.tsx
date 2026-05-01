@@ -1,5 +1,5 @@
 "use client";
-
+ 
 // v18: HistoryPanel — browse/resume past chat sessions stored on the agent.
 //
 // Protocol (chat-channel based, no sidecar):
@@ -19,7 +19,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useChat, useDataChannel } from "@livekit/components-react";
 import { useWindowResize } from "@/hooks/useWindowResize";
-
+ 
 interface Session {
   id: string;
   started: string;
@@ -27,20 +27,20 @@ interface Session {
   summary: string;
   username: string;
 }
-
+ 
 interface Message {
   role: string;
   content: string;
 }
-
+ 
 interface Props {
   username: string;
   accentColor?: string;
 }
-
+ 
 const HISTORY_TOPIC = "jeeves-history-response";
 const RESPONSE_TIMEOUT_MS = 3000;
-
+ 
 export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selected, setSelected] = useState<Session | null>(null);
@@ -49,18 +49,18 @@ export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+ 
   const { width } = useWindowResize();
   const isDesktop = width >= 1024; // matches existing lg: breakpoint
-
+ 
   // useChat returns { send, chatMessages, isSending } in @livekit/components-react v2.
   const chat = useChat();
   const sendChat = chat?.send;
-
+ 
   // Listen for agent responses on a dedicated topic so they don't clutter regular chat.
   const dataChannel = useDataChannel(HISTORY_TOPIC);
   const dataMsg = dataChannel?.message;
-
+ 
   useEffect(() => {
     if (!dataMsg?.payload) return;
     try {
@@ -85,7 +85,7 @@ export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
       // Malformed payload — ignore.
     }
   }, [dataMsg]);
-
+ 
   const fetchSessions = useCallback(() => {
     if (!sendChat || !username) return;
     setLoading(true);
@@ -97,14 +97,14 @@ export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
     }, RESPONSE_TIMEOUT_MS);
     sendChat(`__history_list__:${username}`).catch(() => {});
   }, [sendChat, username]);
-
+ 
   // Auto-refresh when username becomes available. sendChat is supplied by
   // @livekit/components-react's useChat() and is always defined inside a Room context.
   useEffect(() => {
     if (username) fetchSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
-
+ 
   const openSession = useCallback(
     (s: Session) => {
       if (!sendChat) return;
@@ -116,23 +116,24 @@ export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
     },
     [sendChat]
   );
-
+ 
   const resumeSession = useCallback(() => {
     if (!sendChat || !selected) return;
     sendChat(`__session_resume__:${selected.id}`).catch(() => {});
     setDetailOpen(false);
     setSelected(null);
   }, [sendChat, selected]);
-
+ 
   const newSession = useCallback(() => {
     if (!sendChat) return;
     sendChat(`__new_session__`).catch(() => {});
     setDetailOpen(false);
     setSelected(null);
   }, [sendChat]);
-
+ 
   const SessionList = (
-    <div className="flex flex-col flex-1 overflow-hidden min-h-0">
+    // min-w-0 = prevent flex children from forcing horizontal overflow.
+    <div className="flex flex-col flex-1 overflow-hidden min-h-0 min-w-0 w-full">
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800 flex-shrink-0">
         <span className="text-xs text-gray-500 truncate">
           {username ? `History · ${username}` : "History"}
@@ -176,13 +177,16 @@ export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
             <div
               key={s.id}
               onClick={() => openSession(s)}
-              className={`p-3 rounded-md mb-2 cursor-pointer border transition-colors ${
+              className={`p-3 rounded-md mb-2 cursor-pointer border transition-colors min-w-0 ${
                 selected?.id === s.id
                   ? "bg-gray-800 border-gray-600"
                   : "border-gray-800 hover:bg-gray-900 hover:border-gray-700"
               }`}
             >
-              <p className="text-xs text-gray-300 truncate mb-1">
+              {/* v18: wrap long titles instead of horizontal-scrolling.
+                  break-words handles unbroken strings; whitespace-normal
+                  overrides any inherited nowrap. */}
+              <p className="text-xs text-gray-300 mb-1 whitespace-normal break-words">
                 {s.summary || "(no summary)"}
               </p>
               <p className="text-xs text-gray-600">
@@ -194,7 +198,7 @@ export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
       </div>
     </div>
   );
-
+ 
   const DetailPane = (
     <div className="flex flex-col flex-1 overflow-hidden min-h-0">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800 flex-shrink-0">
@@ -243,7 +247,7 @@ export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
       </div>
     </div>
   );
-
+ 
   if (isDesktop) {
     return (
       <div className="flex flex-1 overflow-hidden h-full" style={{ minHeight: 300 }}>
@@ -262,12 +266,12 @@ export function HistoryPanel({ username, accentColor = "cyan" }: Props) {
       </div>
     );
   }
-
+ 
   return (
     <div className="flex flex-col flex-1 overflow-hidden h-full">
       {detailOpen && selected ? DetailPane : SessionList}
     </div>
   );
 }
-
+ 
 export default HistoryPanel;
