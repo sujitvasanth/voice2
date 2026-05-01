@@ -102,13 +102,13 @@ export const PlaygroundTabbedTile: React.FC<PlaygroundTabbedTileProps> = ({
       >
         {/* v18: render ALL tabs, hide inactive ones via CSS so React state
             (chat history, transcripts, history list) survives tab switches.
-            Previously {tabs[activeTab].content} unmounted inactive tabs. */}
+            NOTE: wrapper uses display:block (not flex) — matches the original
+            layout so children like Settings (basis-1/4) keep h-full behaviour. */}
         {tabs.map((tab, index) => (
           <div
             key={index}
             style={{
-              display: index === activeTab ? "flex" : "none",
-              flexDirection: "column",
+              display: index === activeTab ? "block" : "none",
               width: "100%",
               height: "100%",
             }}
